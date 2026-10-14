@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+# Orb resume check for pi-explainer-vid: runs on every wake, must finish
+# in seconds. This repo has no databases, tunnels, or logins to restore —
+# resume only reports that the snapshotted toolchain survived. It never
+# installs anything (that is .agents/setup's job) and never fails the
+# wake for optional config such as a missing ElevenLabs key.
+set -euo pipefail
+
+log() { printf '[orb-resume] %s\n' "$*"; }
+
+if command -v node >/dev/null 2>&1; then
+	log "node $(node --version)"
+else
+	log "node MISSING — rerun .agents/setup"
+fi
+if command -v ffmpeg >/dev/null 2>&1 && command -v ffprobe >/dev/null 2>&1; then
+	log "ffmpeg/ffprobe present"
+else
+	log "ffmpeg/ffprobe MISSING — rerun .agents/setup"
+fi
+
+TEMPLATE="${XDG_CACHE_HOME:-$HOME/.cache}/explainer-video/remotion-template"
+if [ -d "$TEMPLATE/node_modules/remotion" ]; then
+	log "Remotion template present at $TEMPLATE"
+else
+	log "Remotion template missing — videos will scaffold with create-video (or rerun .agents/setup)"
+fi
+
+if [ -n "${ELEVENLABS_API_KEY:-}" ]; then
+	log "ELEVENLABS_API_KEY: set (value hidden)"
+else
+	log "ELEVENLABS_API_KEY: not set (needed only for TTS)"
+fi

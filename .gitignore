@@ -13,5 +13,6 @@ videos/*/*_frames/
 
 # agent scratch
 .amp/in/
+.amp/portals/*
 
 .DS_Store

@@ -1,0 +1,116 @@
+#!/usr/bin/env bash
+# Orb setup for pi-explainer-vid (https://ampcode.com/docs/orbs).
+#
+# What a fresh machine needs for this repo:
+# - Node 18+ / npm (zero-dep skill scripts + per-video Remotion projects)
+# - ffmpeg + ffprobe (render verification, frame extraction)
+# - Shared libraries for Remotion's Chrome Headless Shell
+# - ELEVENLABS_API_KEY comes from Amp secrets/environment at run time.
+#   Setup never reads, stores, or prints it (snapshots are shared).
+#
+# The expensive step in the explainer-video workflow is scaffolding each
+# video's Remotion project: `npx create-video@latest` + `npm i
+# @remotion/media @remotion/google-fonts` + the ~100MB Headless Shell
+# download (~100s cold). This script prebuilds that blank project once at
+# ~/.cache/explainer-video/remotion-template so the orb snapshot captures
+# it; per video, agents copy the template instead of reinstalling (see
+# AGENTS.md). Building it also warms ~/.npm, which speeds up a plain
+# create-video run when the template is not used.
+#
+# Idempotent: every step checks first and skips work already done, so
+# re-running on a warm/stale snapshot takes seconds.
+set -euo pipefail
+
+cd "$(dirname "${BASH_SOURCE[0]}")/.."
+START=$SECONDS
+log() { printf '[orb-setup] %s (%ss)\n' "$*" "$((SECONDS - START))"; }
+
+SUDO=""
+[ "$(id -u)" -ne 0 ] && SUDO="sudo"
+
+# --- 1. System packages (check first; apt only when something is missing) ---
+missing_pkgs=()
+command -v ffmpeg >/dev/null 2>&1 && command -v ffprobe >/dev/null 2>&1 || missing_pkgs+=(ffmpeg)
+command -v node >/dev/null 2>&1 || missing_pkgs+=(nodejs npm)
+# Libraries Chrome Headless Shell needs (verified present in the orb base
+# template; listed so a barer base still renders).
+for pkg in libnss3 libdbus-1-3 libatk1.0-0 libatk-bridge2.0-0 libatspi2.0-0 \
+	libcups2 libdrm2 libxkbcommon0 libxcomposite1 libxdamage1 libxfixes3 \
+	libxrandr2 libgbm1 libasound2 libpango-1.0-0 libcairo2 libx11-6 \
+	libxcb1 libxext6 libexpat1; do
+	dpkg -s "$pkg" >/dev/null 2>&1 || missing_pkgs+=("$pkg")
+done
+if ((${#missing_pkgs[@]})); then
+	log "installing system packages: ${missing_pkgs[*]}"
+	$SUDO apt-get update -qq
+	$SUDO DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends "${missing_pkgs[@]}"
+else
+	log "system packages present (ffmpeg/ffprobe, Chrome Headless Shell libs)"
+fi
+
+# --- 2. Node >= 18 (repo engines; Remotion needs a current LTS ideally) ---
+node_major="$(node -p 'process.versions.node.split(".")[0]')"
+if [ "$node_major" -lt 18 ]; then
+	log "ERROR: Node >= 18 required, found $(node --version)"
+	exit 1
+fi
+log "node $(node --version), npm $(npm --version), $(ffmpeg -version 2>/dev/null | head -n 1 | cut -d' ' -f1-3)"
+
+# --- 3. Skill scripts smoke check (no network, no API key needed) ---
+node .pi/skills/explainer-video/scripts/tts.mjs --help >/dev/null
+node .pi/skills/explainer-video/scripts/synth-audio.mjs --help >/dev/null
+bash .pi/skills/explainer-video/scripts/verify.sh --help >/dev/null
+log "skill scripts run (tts.mjs, synth-audio.mjs, verify.sh)"
+
+# --- 4. Prebuild the blank Remotion template (the slow step, done once) ---
+CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/explainer-video"
+TEMPLATE="$CACHE_DIR/remotion-template"
+template_ready() {
+	[ -f "$TEMPLATE/package-lock.json" ] &&
+		[ -d "$TEMPLATE/node_modules/remotion" ] &&
+		[ -d "$TEMPLATE/node_modules/@remotion/media" ] &&
+		[ -d "$TEMPLATE/node_modules/@remotion/google-fonts" ] &&
+		find "$TEMPLATE/node_modules/.remotion" -name 'chrome-headless-shell' -type f 2>/dev/null | grep -q .
+}
+build_template() {
+	local work="$CACHE_DIR/.build-$$"
+	rm -rf "$work"
+	mkdir -p "$work"
+	# Same scaffold the skill documents (SKILL.md step 4), built under a
+	# scratch dir and moved into place only when complete.
+	(cd "$work" && npx -y create-video@latest --yes --blank --no-tailwind remotion-template)
+	npm --prefix "$work/remotion-template" install --no-audit --no-fund @remotion/media @remotion/google-fonts
+	(cd "$work/remotion-template" && npx remotion browser ensure)
+	# Advisory proof the template typechecks and renders headless here.
+	# A failure (e.g. upstream renamed the blank composition) must not
+	# throw away an otherwise complete template.
+	(cd "$work/remotion-template" && npx tsc --noEmit) ||
+		log "WARNING: template tsc --noEmit failed (template kept)"
+	(cd "$work/remotion-template" && npx remotion still MyComp "$work/still.png" --frame=0 >/dev/null) ||
+		log "WARNING: template test still failed (template kept; check headless Chrome)"
+	# create-video git-inits the scaffold; a copied template must not
+	# nest a repo inside videos/<slug>/.
+	rm -rf "$work/remotion-template/.git" "$work/still.png"
+	rm -rf "$TEMPLATE"
+	mv "$work/remotion-template" "$TEMPLATE"
+	rmdir "$work" 2>/dev/null || rm -rf "$work"
+}
+if template_ready; then
+	log "Remotion template already built at $TEMPLATE (skipping)"
+elif build_template; then
+	log "Remotion template ready at $TEMPLATE (copy it per video; see AGENTS.md)"
+else
+	# Degrade gracefully: a snapshot without the template still has a
+	# partially warmed npm cache, and agents can scaffold with
+	# create-video exactly as the skill documents.
+	log "WARNING: Remotion template prebuild failed; falling back to per-video create-video"
+	rm -rf "$CACHE_DIR/.build-$$"
+fi
+
+# --- 5. Report (never prints secret values) ---
+if [ -n "${ELEVENLABS_API_KEY:-}" ]; then
+	log "ELEVENLABS_API_KEY: set (value hidden)"
+else
+	log "ELEVENLABS_API_KEY: not set — add it as an Amp secret/environment variable before TTS"
+fi
+log "done"
