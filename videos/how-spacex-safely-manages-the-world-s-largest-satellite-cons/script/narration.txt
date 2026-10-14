@@ -1,0 +1,11 @@
+SpaceX flies the largest satellite constellation in history. As of late August 2026, astronomer Jonathan McDowell counted 11,102 Starlink satellites in orbit, with 11,087 of them working. At that scale, space safety cannot be flown by hand. It has to be automated, and it has to be shared.
+
+Layer one is dodging. Between December 2024 and May 2025, Starlink satellites performed 144,404 collision avoidance maneuvers. SpaceX says it maneuvers on the most conservative thresholds in the industry, moving early rather than late. In fact, part of that huge maneuver count is because SpaceX lowered its threshold for moving at all.
+
+Layer two is disappearing on purpose. Starlink operates below 600 kilometers, where drag pulls even a failed satellite down within five years. Satellites are designed to burn up completely on reentry, and SpaceX proactively deorbits any satellite at risk of becoming uncontrollable. During 2026, it is also lowering about 4,400 satellites from 550 kilometers down to 480, where debris is scarcer, and where a dead satellite decays in months instead of years.
+
+Layer three is sharing the map, for free. SpaceX publishes Starlink's predicted positions, called ephemeris, on its public website and screening platforms. On its own space safety platform, which SpaceX says is always free for participating operators, screening results typically come back in under a minute, and Starlink navigation data refreshes hourly.
+
+Then SpaceX turned the fleet itself into a sensor. In January 2026 it unveiled Stargaze, which uses nearly 30,000 star trackers aboard Starlink satellites to spot roughly 30 million transits a day. Those sightings become near real time orbit estimates and collision warnings, screened within minutes instead of the usual hours. Operators that upload their own trajectories receive that conjunction data free of charge, which SpaceX hopes will motivate everyone to share.
+
+It is not a complete answer. Experts note that star trackers are not telescopes, that Stargaze mainly sees low Earth orbit, and that screening only covers participating operators and tracked objects. Nonetheless, the logic is simple. Debris threatens every operator, and the biggest fleet has the most to lose. So SpaceX treats space safety data like a shared traffic map, not a product.
