@@ -1,0 +1,17 @@
+# secrets — keys come from the shell environment, never commit them
+.env
+.env.*
+
+# node / Remotion projects created per-video under videos/
+node_modules/
+videos/*/node_modules/
+videos/*/out/
+videos/*/*_frames/
+
+# scratch / verification frames
+*_frames/
+
+# agent scratch
+.amp/in/
+
+.DS_Store

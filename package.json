@@ -1,0 +1,20 @@
+{
+  "name": "pi-explainer-video-bot",
+  "version": "0.2.0",
+  "description": "Pi coding agent extension + skill: turn any topic into a researched, narrated Remotion explainer video (ElevenLabs TTS, synced captions, synthesized music/SFX, verified 1080p MP4).",
+  "keywords": ["pi-package", "pi-extension", "pi-skill", "remotion", "elevenlabs", "explainer-video"],
+  "license": "MIT",
+  "type": "module",
+  "files": [".pi/extensions", ".pi/skills", ".pi/prompts", "AGENTS.md", "README.md", "LICENSE"],
+  "pi": {
+    "extensions": ["./.pi/extensions"],
+    "skills": ["./.pi/skills"],
+    "prompts": ["./.pi/prompts"]
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-ai": "*",
+    "@earendil-works/pi-coding-agent": "*",
+    "typebox": "*"
+  },
+  "engines": { "node": ">=18" }
+}
